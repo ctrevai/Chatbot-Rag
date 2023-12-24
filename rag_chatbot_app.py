@@ -5,7 +5,7 @@ st.set_page_config(page_title="RAG Chatbot")
 st.title("RAG Chatbot")
 
 if 'memory' not in st.session_state:
-    st.session_state.memory = []
+    st.session_state.memory = glib.get_memory()
 
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
@@ -26,7 +26,7 @@ if input_text:
         {"role": "user", "text": input_text})
 
     chat_response = glib.get_rag_chat_response(
-        input_text, st.session_state.memory, st.session_state.vector_index)
+        input_text=input_text, memory=st.session_state.memory, index=st.session_state.vector_index)
 
     with st.chat_message("assistant"):
         st.markdown(chat_response)
