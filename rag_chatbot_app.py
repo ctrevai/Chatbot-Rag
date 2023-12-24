@@ -17,7 +17,7 @@ for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["text"])
 
-input_text = st.chat_input("How do you want to start the game? ")
+input_text = st.chat_input("How can I help you today? ")
 
 if input_text:
     with st.chat_message("user"):
