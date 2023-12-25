@@ -3,9 +3,12 @@ from langchain.indexes import VectorstoreIndexCreator
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PyPDFLoader
-from langchain.memory import ConversationBufferWindowMemory
+# from langchain.memory import ConversationBufferWindowMemory
 from langchain.llms.bedrock import Bedrock
 from langchain.chains import ConversationalRetrievalChain
+from langchain.prompts import PromptTemplate
+from langchain.schema import BaseMessage
+from langchain.memory import ConversationBufferMemory
 
 
 def get_llm():
@@ -64,7 +67,7 @@ def get_index():
 
 
 def get_memory():
-    memory = ConversationBufferWindowMemory(
+    memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True,
     )
@@ -75,10 +78,36 @@ def get_rag_chat_response(input_text, memory, index):  # chat client function
 
     llm = get_llm()
 
+    _ROLE_MAP = {"human": "\n\nHuman: ", "ai": "\n\nAssistant: "}
+
+    def _get_chat_history(chat_history):
+        buffer = ""
+        for dialogue_turn in chat_history:
+            if isinstance(dialogue_turn, BaseMessage):
+                role_prefix = _ROLE_MAP.get(
+                    dialogue_turn.type, f"{dialogue_turn.type}: ")
+                buffer += f"\n{role_prefix}{dialogue_turn.content}"
+            elif isinstance(dialogue_turn, tuple):
+                human = "\n\nHuman: " + dialogue_turn[0]
+                ai = "\n\nAssistant: " + dialogue_turn[1]
+                buffer += "\n" + "\n".join([human, ai])
+            else:
+                raise ValueError(
+                    f"Unsupported chat history format: {type(dialogue_turn)}."
+                    f" Full chat history: {chat_history} "
+                )
+        return buffer
+
     conversation_with_retrieval = ConversationalRetrievalChain.from_llm(
-        llm, index.vectorstore.as_retriever(), memory=memory)
+        llm=llm,
+        retriever=index.vectorstore.as_retriever(),
+        memory=memory,
+        get_chat_history=_get_chat_history,
+        # condense_question_prompt=condense_prompt_claude,
+        verbose=True,
+        chain_type='stuff'
+    )
 
     # pass the user message, history, and knowledge to the model
     chat_response = conversation_with_retrieval({"question": input_text})
-
     return chat_response['answer']
